@@ -14,7 +14,12 @@
 #include <GLES2/gl2.h>
 #include <GLES2/gl2ext.h>
 
-
+// ANGLE functions not supported. error: arm-dolce-eabi/bin/ld.exe: main.c:(.text+0x5e1a): undefined reference to `glDrawArraysInstancedANGLE'
+// sokol_gfx checks for GL_ANGLE_instanced_arrays first then GL_EXT_draw_instanced so undef it ???
+#undef GL_ANGLE_instanced_arrays 
+#define SOKOL_IMPL
+#define SOKOL_GLES2
+#include "sokol_gfx.h"
 
 
 int main(int args, char *argv[]) {
@@ -60,16 +65,22 @@ int main(int args, char *argv[]) {
     eglQuerySurface(egl_display, egl_surface, EGL_WIDTH, &egl_surface_width);
     eglQuerySurface(egl_display, egl_surface, EGL_HEIGHT, &egl_surface_height);
 
-    glClearDepthf(1.0f);
-    glClearColor(0.10f,0.30f,0.50f,1.0f);
+    sg_setup(&(sg_desc){0});
+    sg_pass_action pass_action = (sg_pass_action) {
+        .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.50f,0.30f,0.10f, 1.0f } }
+    };
 
     while(1)
     {
-        glViewport(0, 0, egl_surface_width, egl_surface_height);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        sg_begin_default_pass(&pass_action, egl_surface_width, egl_surface_height);    
+        sg_end_pass();
+        sg_commit();
 
         eglSwapBuffers(egl_display, egl_surface);
     }
+    
+    sg_shutdown();
+
     eglDestroyContext(egl_display, egl_context); 
     eglDestroySurface(egl_display, egl_surface);
     eglTerminate(egl_display);
