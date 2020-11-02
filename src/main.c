@@ -23,6 +23,8 @@
 #include "sokol_time.h"
 #define SOKOL_DEBUGTEXT_IMPL
 #include "sokol_debugtext.h"
+#define SOKOL_GL_IMPL
+#include "sokol_gl.h"
 
 int main(int args, char *argv[]) {
     /*     
@@ -72,15 +74,17 @@ int main(int args, char *argv[]) {
     sdtx_setup(&(sdtx_desc_t){.fonts = {
         [0] = sdtx_font_kc853()
     }});
+    sgl_setup(&(sgl_desc_t){.max_vertices = 512, .max_commands = 128, .pipeline_pool_size = 32 ,.face_winding = SG_FACEWINDING_CCW});
+
     sg_pass_action pass_action = (sg_pass_action) {
-        .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.50f,0.30f,0.10f, 1.0f } }
+        .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.10f,0.30f,0.50f, 1.0f } }
     };
     uint64_t last_time = 0;
     uint64_t min_raw_frame_time = 0xFFFFFFFFFFFFFFFF;
     uint64_t max_raw_frame_time = 0;
     uint64_t min_rounded_frame_time = 0xFFFFFFFFFFFFFFFF;
     uint64_t max_rounded_frame_time = 0;
-
+    float rot[2] = { 0.0f, 0.0f };
     while(1)
     {
         uint64_t raw_frame_time = stm_laptime(&last_time);
@@ -112,13 +116,60 @@ int main(int args, char *argv[]) {
         sdtx_printf("rounded frame time: %.3fms (min: %.3f, max: %.3f)\n",
             stm_ms(rounded_frame_time), stm_ms(min_rounded_frame_time), stm_ms(max_rounded_frame_time));
 
+
+        rot[0] += 1.0f;
+        rot[1] += 2.0f;
+
+        sgl_defaults();
+        sgl_matrix_mode_projection();
+        sgl_perspective(sgl_rad(45.0f), 1.0f, 0.1f, 100.0f);
+        sgl_matrix_mode_modelview();
+        sgl_translate(0.0f, 0.0f, -12.0f);
+        sgl_rotate(sgl_rad(rot[0]), 1.0f, 0.0f, 0.0f);
+        sgl_rotate(sgl_rad(rot[1]), 0.0f, 1.0f, 0.0f);
+        sgl_begin_quads();
+        sgl_c3f(1.0f, 0.0f, 0.0f);
+            sgl_v3f_t2f(-1.0f,  1.0f, -1.0f, -1.0f,  1.0f);
+            sgl_v3f_t2f( 1.0f,  1.0f, -1.0f,  1.0f,  1.0f);
+            sgl_v3f_t2f( 1.0f, -1.0f, -1.0f,  1.0f, -1.0f);
+            sgl_v3f_t2f(-1.0f, -1.0f, -1.0f, -1.0f, -1.0f);
+        sgl_c3f(0.0f, 1.0f, 0.0f);
+            sgl_v3f_t2f(-1.0, -1.0,  1.0, -1.0f,  1.0f);
+            sgl_v3f_t2f( 1.0, -1.0,  1.0,  1.0f,  1.0f);
+            sgl_v3f_t2f( 1.0,  1.0,  1.0,  1.0f, -1.0f);
+            sgl_v3f_t2f(-1.0,  1.0,  1.0, -1.0f, -1.0f);
+        sgl_c3f(0.0f, 0.0f, 1.0f);
+            sgl_v3f_t2f(-1.0, -1.0,  1.0, -1.0f,  1.0f);
+            sgl_v3f_t2f(-1.0,  1.0,  1.0,  1.0f,  1.0f);
+            sgl_v3f_t2f(-1.0,  1.0, -1.0,  1.0f, -1.0f);
+            sgl_v3f_t2f(-1.0, -1.0, -1.0, -1.0f, -1.0f);
+        sgl_c3f(1.0f, 0.5f, 0.0f);
+            sgl_v3f_t2f(1.0, -1.0,  1.0, -1.0f,   1.0f);
+            sgl_v3f_t2f(1.0, -1.0, -1.0,  1.0f,   1.0f);
+            sgl_v3f_t2f(1.0,  1.0, -1.0,  1.0f,  -1.0f);
+            sgl_v3f_t2f(1.0,  1.0,  1.0, -1.0f,  -1.0f);
+        sgl_c3f(0.0f, 0.5f, 1.0f);
+            sgl_v3f_t2f( 1.0, -1.0, -1.0, -1.0f,  1.0f);
+            sgl_v3f_t2f( 1.0, -1.0,  1.0,  1.0f,  1.0f);
+            sgl_v3f_t2f(-1.0, -1.0,  1.0,  1.0f, -1.0f);
+            sgl_v3f_t2f(-1.0, -1.0, -1.0, -1.0f, -1.0f);
+        sgl_c3f(1.0f, 0.0f, 0.5f);
+            sgl_v3f_t2f(-1.0,  1.0, -1.0, -1.0f,  1.0f);
+            sgl_v3f_t2f(-1.0,  1.0,  1.0,  1.0f,  1.0f);
+            sgl_v3f_t2f( 1.0,  1.0,  1.0,  1.0f, -1.0f);
+            sgl_v3f_t2f( 1.0,  1.0, -1.0, -1.0f, -1.0f);
+        sgl_end();
+
+
         sg_begin_default_pass(&pass_action, egl_surface_width, egl_surface_height);    
-        sdtx_draw();
+            sgl_draw();
+            sdtx_draw();
         sg_end_pass();
         sg_commit();
 
         eglSwapBuffers(egl_display, egl_surface);
     }
+    sgl_shutdown();
     sdtx_shutdown();
     sg_shutdown();
 

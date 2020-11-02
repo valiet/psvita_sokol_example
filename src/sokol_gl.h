@@ -2692,9 +2692,16 @@ SOKOL_API_IMPL void sgl_setup(const sgl_desc_t* desc) {
     shd_desc.attrs[2].sem_index = 2;
     sg_shader_uniform_block_desc* ub = &shd_desc.vs.uniform_blocks[0];
     ub->size = sizeof(_sgl_uniform_t);
-    ub->uniforms[0].name = "vs_params";
-    ub->uniforms[0].type = SG_UNIFORMTYPE_FLOAT4;
-    ub->uniforms[0].array_count = 8;
+    #if __VITA__
+        ub->uniforms[0].name = "u_mvpMat";
+        ub->uniforms[0].type = SG_UNIFORMTYPE_MAT4;
+        ub->uniforms[1].name = "u_texMat";
+        ub->uniforms[1].type = SG_UNIFORMTYPE_MAT4;
+    #else 
+        ub->uniforms[0].name = "vs_params";
+        ub->uniforms[0].type = SG_UNIFORMTYPE_FLOAT4;
+        ub->uniforms[0].array_count = 8;
+    #endif
     shd_desc.fs.images[0].name = "tex";
     shd_desc.fs.images[0].type = SG_IMAGETYPE_2D;
     shd_desc.fs.images[0].sampler_type = SG_SAMPLERTYPE_FLOAT;
@@ -2703,8 +2710,32 @@ SOKOL_API_IMPL void sgl_setup(const sgl_desc_t* desc) {
         shd_desc.vs.source = _sgl_vs_source_glsl330;
         shd_desc.fs.source = _sgl_fs_source_glsl330;
     #elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
-        shd_desc.vs.source = _sgl_vs_source_glsl100;
-        shd_desc.fs.source = _sgl_fs_source_glsl100;
+        #if __VITA__
+            shd_desc.vs.source = "void main(\n"   
+                "uniform float4x4 u_mvpMat,\n"
+                "uniform float4x4 u_texMat,\n"
+                "float4 position,\n"
+                "float2 texcoord0,\n"
+                "float4 color0,\n"
+                "float4 out v_position: POSITION,\n"
+                "float4 out v_texCoord: TEXCOORD,\n"
+                "float4 out v_color: COLOR)\n"
+            "{\n"
+            "   v_color = color0;\n"
+            "   v_position = mul(position, u_mvpMat);\n"
+            "   v_texCoord = mul(float4(texcoord0,0.0,1.0),u_texMat);\n"
+            "}";
+            shd_desc.fs.source = "float4 main(\n"
+                "uniform sampler2D tex,\n"
+                "float4 v_color: COLOR,\n"
+                "float4 v_texCoord: TEXCOORD)\n"
+            "{\n"
+            "   return tex2D(tex, v_texCoord.xy) * v_color;\n"
+            "}";
+        #else
+            shd_desc.vs.source = _sgl_vs_source_glsl100;
+            shd_desc.fs.source = _sgl_fs_source_glsl100;
+        #endif
     #elif defined(SOKOL_METAL)
         shd_desc.vs.entry = "main0";
         shd_desc.fs.entry = "main0";
