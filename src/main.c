@@ -21,6 +21,8 @@
 #define SOKOL_GLES2
 #include "sokol_gfx.h"
 #include "sokol_time.h"
+#define SOKOL_DEBUGTEXT_IMPL
+#include "sokol_debugtext.h"
 
 int main(int args, char *argv[]) {
     /*     
@@ -67,6 +69,9 @@ int main(int args, char *argv[]) {
 
     stm_setup();
     sg_setup(&(sg_desc){0});
+    sdtx_setup(&(sdtx_desc_t){.fonts = {
+        [0] = sdtx_font_kc853()
+    }});
     sg_pass_action pass_action = (sg_pass_action) {
         .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.50f,0.30f,0.10f, 1.0f } }
     };
@@ -98,13 +103,23 @@ int main(int args, char *argv[]) {
             }
         }
 
+        sdtx_canvas(egl_surface_width*0.5f, egl_surface_height*0.5f);     
+        sdtx_home();
+        sdtx_color4b(0x00, 0xff, 0x00, 0xff);
+        sdtx_puts("Hello world\n");
+        sdtx_printf("raw frame time:     %.3fms (min: %.3f, max: %.3f)\n",
+            stm_ms(raw_frame_time), stm_ms(min_raw_frame_time), stm_ms(max_raw_frame_time));
+        sdtx_printf("rounded frame time: %.3fms (min: %.3f, max: %.3f)\n",
+            stm_ms(rounded_frame_time), stm_ms(min_rounded_frame_time), stm_ms(max_rounded_frame_time));
+
         sg_begin_default_pass(&pass_action, egl_surface_width, egl_surface_height);    
+        sdtx_draw();
         sg_end_pass();
         sg_commit();
 
         eglSwapBuffers(egl_display, egl_surface);
     }
-
+    sdtx_shutdown();
     sg_shutdown();
 
     eglDestroyContext(egl_display, egl_context); 
@@ -113,7 +128,6 @@ int main(int args, char *argv[]) {
 
     sceKernelExitProcess(0);
     return 0;
-
 }
 
 /* needed for -nostdlib support

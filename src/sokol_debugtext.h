@@ -3676,8 +3676,33 @@ static void _sdtx_setup_common(void) {
         shd_desc.vs.source = _sdtx_vs_src_glcore33;
         shd_desc.fs.source = _sdtx_fs_src_glcore33;
     #elif defined(SOKOL_GLES2) || defined(SOKOL_GLES3)
-        shd_desc.vs.source = _sdtx_vs_src_gles2;
-        shd_desc.fs.source = _sdtx_fs_src_gles2;
+        #if defined(__VITA__)
+            shd_desc.vs.source ="void main(\n"   
+                "float4 position: POSITION,\n"
+                "float4 color0: COLOR,\n"
+                "float2 texcoord0: TEXCOORD,\n"
+                "float4 out v_position: POSITION,\n"
+                "float4 out v_color: COLOR,\n"
+                "float2 out v_texCoord: TEXCOORD)\n"
+                "{\n"
+                "   v_position.x = position.x * 2.0 - 1.0;\n"
+                "   v_position.y = position.y * -2.0 + 1.0;\n"
+                "   v_position.z = 0.0;\n"
+                "   v_position.w = 1.0;\n"
+                "   v_color = color0;\n"
+                "   v_texCoord = texcoord0;\n"
+                "}";
+            shd_desc.fs.source ="float4 main(\n"
+                "uniform sampler2D tex,\n"
+                "float4 v_color: COLOR,\n"
+                "float2 v_texCoord: TEXCOORD)\n"
+                "{\n"
+                "   return tex2D(tex, v_texCoord).xxxx * v_color;\n"
+                "}";
+        #else 
+            shd_desc.vs.source = _sdtx_vs_src_gles2;
+            shd_desc.fs.source = _sdtx_fs_src_gles2;
+        #endif
     #elif defined(SOKOL_METAL)
         shd_desc.vs.entry = "main0";
         shd_desc.fs.entry = "main0";
