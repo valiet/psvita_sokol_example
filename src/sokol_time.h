@@ -174,6 +174,13 @@ typedef struct {
     uint32_t initialized;
     double start;
 } _stm_state_t;
+#elif defined(__VITA__)
+#include <psp2/rtc.h>
+typedef struct {
+    unsigned int initialized;
+    unsigned int tick_res;
+    SceRtcTick start;
+} _stm_state_t;
 #else /* anything else, this will need more care for non-Linux platforms */
 #ifdef ESP8266
 // On the ESP8266, clock_gettime ignores the first argument and CLOCK_MONOTONIC isn't defined
@@ -190,7 +197,7 @@ static _stm_state_t _stm;
 /* prevent 64-bit overflow when computing relative timestamp
     see https://gist.github.com/jspohr/3dc4f00033d79ec5bdaf67bc46c813e3
 */
-#if defined(_WIN32) || (defined(__APPLE__) && defined(__MACH__))
+#if defined(_WIN32) || (defined(__APPLE__) && defined(__MACH__)) || defined(__VITA__)
 _SOKOL_PRIVATE int64_t int64_muldiv(int64_t value, int64_t numer, int64_t denom) {
     int64_t q = value / denom;
     int64_t r = value % denom;
@@ -215,6 +222,9 @@ SOKOL_API_IMPL void stm_setup(void) {
         _stm.start = mach_absolute_time();
     #elif defined(__EMSCRIPTEN__)
         _stm.start = stm_js_perfnow();
+    #elif defined(__VITA__)
+        _stm.tick_res = sceRtcGetTickResolution();
+        sceRtcGetCurrentTick(&_stm.start);
     #else
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);
@@ -236,6 +246,10 @@ SOKOL_API_IMPL uint64_t stm_now(void) {
         double js_now = stm_js_perfnow() - _stm.start;
         SOKOL_ASSERT(js_now >= 0.0);
         now = (uint64_t) (js_now * 1000000.0);
+    #elif defined(__VITA__)
+        SceRtcTick qpc_t;
+        sceRtcGetCurrentTick(&qpc_t);
+        now = int64_muldiv(qpc_t.tick - _stm.start.tick, 1000000000, _stm.tick_res);
     #else
         struct timespec ts;
         clock_gettime(CLOCK_MONOTONIC, &ts);

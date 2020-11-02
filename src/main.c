@@ -20,7 +20,7 @@
 #define SOKOL_IMPL
 #define SOKOL_GLES2
 #include "sokol_gfx.h"
-
+#include "sokol_time.h"
 
 int main(int args, char *argv[]) {
     /*     
@@ -65,20 +65,46 @@ int main(int args, char *argv[]) {
     eglQuerySurface(egl_display, egl_surface, EGL_WIDTH, &egl_surface_width);
     eglQuerySurface(egl_display, egl_surface, EGL_HEIGHT, &egl_surface_height);
 
+    stm_setup();
     sg_setup(&(sg_desc){0});
     sg_pass_action pass_action = (sg_pass_action) {
         .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.50f,0.30f,0.10f, 1.0f } }
     };
+    uint64_t last_time = 0;
+    uint64_t min_raw_frame_time = 0xFFFFFFFFFFFFFFFF;
+    uint64_t max_raw_frame_time = 0;
+    uint64_t min_rounded_frame_time = 0xFFFFFFFFFFFFFFFF;
+    uint64_t max_rounded_frame_time = 0;
 
     while(1)
     {
+        uint64_t raw_frame_time = stm_laptime(&last_time);
+        uint64_t rounded_frame_time = stm_round_to_common_refresh_rate(raw_frame_time);
+
+        if (raw_frame_time > 0) {
+            if (raw_frame_time < min_raw_frame_time) {
+                min_raw_frame_time = raw_frame_time;
+            }
+            if (raw_frame_time > max_raw_frame_time) {
+                max_raw_frame_time = raw_frame_time;
+            }
+        }
+        if (rounded_frame_time > 0) {
+            if (rounded_frame_time < min_rounded_frame_time) {
+                min_rounded_frame_time = rounded_frame_time;
+            }
+            if (rounded_frame_time > max_rounded_frame_time) {
+                max_rounded_frame_time = rounded_frame_time;
+            }
+        }
+
         sg_begin_default_pass(&pass_action, egl_surface_width, egl_surface_height);    
         sg_end_pass();
         sg_commit();
 
         eglSwapBuffers(egl_display, egl_surface);
     }
-    
+
     sg_shutdown();
 
     eglDestroyContext(egl_display, egl_context); 
