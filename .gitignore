@@ -1,0 +1,16 @@
+# Ignore everything
+*
+
+# Allow these files
+!.gitignore
+!CMakeLists.txt
+!README.md
+!LICENSE
+
+# Allow these folders
+!sce_sys/
+!src/
+
+# Allow the contents of these folders
+!sce_sys/**
+!src/**
