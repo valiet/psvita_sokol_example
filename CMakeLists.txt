@@ -66,6 +66,8 @@ target_link_libraries(${PROJECT_NAME}
   SceLibc_stub
   SceLibm_stub
 
+  SceTouch_stub
+  SceCtrl_stub
 )
 
 # Piglet needs an SceLibc heap size of at least 3MB to intialize. Without it,

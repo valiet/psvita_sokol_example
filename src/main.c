@@ -6,8 +6,26 @@
 #include <psp2/kernel/clib.h> 
 #include <psp2/kernel/processmgr.h>
 #include <psp2/gxm.h>
-
+#include <psp2/ctrl.h>
+#include <psp2/touch.h>
 #include <pib.h>
+
+#define SCE_DISPLAY_WIDTH  960
+#define SCE_DISPLAY_HEIGHT 544
+
+#define SCE_TOUCH_FRONT_MAX_WITDH 	1919
+#define SCE_TOUCH_FRONT_MAX_HEIGHT 	1087
+#define SCE_TOUCH_BACK_MAX_WITDH 	1919
+#define SCE_TOUCH_BACK_MAX_HEIGHT 	889-108
+
+#define SCE_TOUCH_FRONT_MAX_REPORT 6
+#define SCE_TOUCH_BACK_MAX_REPORT 4
+
+#define	SCE_CTRL_PAD_ONE 0
+#define	SCE_CTRL_PAD_TWO 1
+#define	SCE_CTRL_PAD_THREE 2
+#define	SCE_CTRL_PAD_FOUR 3
+#define	SCE_CTRL_PAD_MAX_NUM 4
 
 #define GL_GLEXT_PROTOTYPES
 #include <EGL/egl.h>
@@ -25,6 +43,9 @@
 #include "sokol_debugtext.h"
 #define SOKOL_GL_IMPL
 #include "sokol_gl.h"
+
+#define math_lerp(value, from_max, to_max) (((((value)*10) * ((to_max)*10))/((from_max)*10))/10)
+
 
 int main(int args, char *argv[]) {
     /*     
@@ -69,12 +90,27 @@ int main(int args, char *argv[]) {
     eglQuerySurface(egl_display, egl_surface, EGL_WIDTH, &egl_surface_width);
     eglQuerySurface(egl_display, egl_surface, EGL_HEIGHT, &egl_surface_height);
 
+    // gamepad
+    SceCtrlData ctrl_pad_one = { 0 };
+    sceCtrlSetSamplingMode(SCE_CTRL_MODE_ANALOG_WIDE);
+
+    // touch
+    SceTouchData touch_front = { 0 };
+    sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
+    //sceTouchEnableTouchForce(SCE_TOUCH_PORT_FRONT);
+    //sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
+    //sceTouchEnableTouchForce(SCE_TOUCH_PORT_BACK);
+
+	const char* ctrl_btn_label[]={"SELECT ","","","START ",
+		"UP ","RIGHT ","DOWN ","LEFT ","L ","R ","","",
+		"TRIANGLE ","CIRCLE ","CROSS ","SQUARE "};
+
     stm_setup();
     sg_setup(&(sg_desc){0});
     sdtx_setup(&(sdtx_desc_t){.fonts = {
         [0] = sdtx_font_kc853()
     }});
-    sgl_setup(&(sgl_desc_t){.max_vertices = 512, .max_commands = 128, .pipeline_pool_size = 32 ,.face_winding = SG_FACEWINDING_CCW});
+    sgl_setup(&(sgl_desc_t){.max_vertices = 512, .max_commands = 128, .pipeline_pool_size = 32});
 
     sg_pass_action pass_action = (sg_pass_action) {
         .colors[0] = { .action = SG_ACTION_CLEAR, .val = { 0.10f,0.30f,0.50f, 1.0f } }
@@ -107,6 +143,97 @@ int main(int args, char *argv[]) {
             }
         }
 
+        // gamepad update
+        {
+            SceCtrlData ctrl_old = { 0 };
+            memcpy(&ctrl_old, &ctrl_pad_one, sizeof(ctrl_old));
+            sceCtrlPeekBufferPositive(SCE_CTRL_PAD_ONE, &ctrl_pad_one, 1);
+            // gamepad button events
+            const unsigned int changed = ctrl_old.buttons ^ ctrl_pad_one.buttons;
+            if (changed) {
+                if (changed & SCE_CTRL_TRIANGLE) {
+                }
+                if (changed & SCE_CTRL_CIRCLE) {
+                }
+                if (changed & SCE_CTRL_CROSS) {
+                }
+                if (changed & SCE_CTRL_SQUARE) {
+                }
+                if (changed & SCE_CTRL_LTRIGGER) {
+                }
+                if (changed & SCE_CTRL_RTRIGGER) {
+                }
+                if (changed & SCE_CTRL_DOWN) {
+                }
+                if (changed & SCE_CTRL_LEFT) {
+                }
+                if (changed & SCE_CTRL_UP) {
+                }
+                if (changed & SCE_CTRL_RIGHT) {
+                }
+                if (changed & SCE_CTRL_SELECT) {
+                }
+                if (changed & SCE_CTRL_START) {
+                }
+            }
+            // gamepad axes events
+            if (ctrl_old.lx != ctrl_pad_one.lx) {
+            }
+            if (ctrl_old.ly != ctrl_pad_one.ly) {
+            }
+            if (ctrl_old.rx != ctrl_pad_one.rx) {
+            }
+            if (ctrl_old.ry != ctrl_pad_one.ry) {
+            }
+        }
+        // touch update
+        {
+            SceTouchData touch_old = { 0 };
+            memcpy(&touch_old, &touch_front, sizeof(touch_old));
+            sceTouchPeek(SCE_TOUCH_PORT_FRONT, &touch_front, 1);
+            // touch events
+            for (int i = 0; i < touch_front.reportNum; i++) {
+                bool pressed = true;
+                for (int j = 0; j < touch_old.reportNum; j++) {
+                    if (touch_front.report[i].id == touch_old.report[j].id) {
+                        pressed = false;
+                        // touch move
+                        if ((touch_front.report[i].x != touch_old.report[j].x) || (touch_front.report[i].y != touch_old.report[j].y)) {
+                            /*
+                            const int raw_x = math_lerp(touch_front.report[i].x, SCE_TOUCH_FRONT_MAX_WITDH, SCE_DISPLAY_WIDTH);
+                            const int raw_y = math_lerp(touch_front.report[i].y, SCE_TOUCH_FRONT_MAX_HEIGHT, SCE_DISPLAY_HEIGHT);
+							const int old_raw_x = math_lerp(touch_old.report[j].x, SCE_TOUCH_FRONT_MAX_WITDH, SCE_DISPLAY_WIDTH);
+                            const int old_raw_y = math_lerp(touch_old.report[j].y, SCE_TOUCH_FRONT_MAX_HEIGHT, SCE_DISPLAY_HEIGHT);
+                            const int dx = raw_x - old_raw_x;
+                            const int dy = raw_y - old_raw_y;
+                            */
+                        }
+                    }
+                }
+                // touch begin
+                if (pressed) {
+                    //const int raw_x = math_lerp(touch_front.report[i].x, SCE_TOUCH_FRONT_MAX_WITDH, SCE_DISPLAY_WIDTH);
+                    //const int raw_y = math_lerp(touch_front.report[i].y, SCE_TOUCH_FRONT_MAX_HEIGHT, SCE_DISPLAY_HEIGHT);
+                    
+                }
+            }
+            for (int i = 0; i < touch_old.reportNum; i++) {
+                bool released = true;
+                for (int j = 0; j < touch_front.reportNum; j++) {
+                    if (touch_old.report[i].id == touch_front.report[j].id) {
+                        released = false;
+                    }
+                }
+                // touch end
+                if (released) {
+                    //const int raw_x = math_lerp(touch_old.report[i].x, SCE_TOUCH_FRONT_MAX_WITDH, SCE_DISPLAY_WIDTH);
+                    //const int raw_y = math_lerp(touch_old.report[i].y, SCE_TOUCH_FRONT_MAX_HEIGHT, SCE_DISPLAY_HEIGHT);
+                    
+                }
+            }
+        }
+		
+        
         sdtx_canvas(egl_surface_width*0.5f, egl_surface_height*0.5f);     
         sdtx_home();
         sdtx_color4b(0x00, 0xff, 0x00, 0xff);
@@ -116,6 +243,21 @@ int main(int args, char *argv[]) {
         sdtx_printf("rounded frame time: %.3fms (min: %.3f, max: %.3f)\n",
             stm_ms(rounded_frame_time), stm_ms(min_rounded_frame_time), stm_ms(max_rounded_frame_time));
 
+        sdtx_printf("Buttons:%08X\n", ctrl_pad_one.buttons);
+		for(int i=0; i < sizeof(ctrl_btn_label)/sizeof(*ctrl_btn_label); i++){
+            if((ctrl_pad_one.buttons & (1<<i)))
+			    sdtx_printf("%s ",ctrl_btn_label[i]);
+		}
+        sdtx_putc('\n');
+        sdtx_printf("Sticks: %i:%i %i:%i\n", ctrl_pad_one.lx,ctrl_pad_one.ly, ctrl_pad_one.rx,ctrl_pad_one.ry);
+
+        sdtx_printf("Front Touch: ");
+        for(int i = 0; i < touch_front.reportNum; i++) {
+            const int raw_x = math_lerp(touch_front.report[i].x, SCE_TOUCH_FRONT_MAX_WITDH, SCE_DISPLAY_WIDTH);
+            const int raw_y = math_lerp(touch_front.report[i].y, SCE_TOUCH_FRONT_MAX_HEIGHT, SCE_DISPLAY_HEIGHT);
+	        sdtx_printf("%4i:%-4i ", raw_x, raw_y);
+        }
+        sdtx_putc('\n');
 
         rot[0] += 1.0f;
         rot[1] += 2.0f;
